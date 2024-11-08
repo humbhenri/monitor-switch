@@ -14,11 +14,16 @@ get_input_source (void)
   char line[1024];
   int type = -1;
 
+  if (fp == NULL) {
+    g_warning ("popen");
+    return type;
+  }
+
   while (fgets(line, sizeof(line), fp) != NULL) {
-    if (strstr(line, "sl=0x05")) {
+    if (strstr(line, "sl=0x05") != NULL) {
       type = TYPE_HDMI;
       break;
-    } else if (strstr(line, "sl=0x0f")) {
+    } else if (strstr(line, "sl=0x0f") != NULL) {
       type = TYPE_DP;
       break;
     }
@@ -31,13 +36,28 @@ get_input_source (void)
 static void
 set_input_source (GtkWidget *widget, gpointer data)
 {
+  if (!widget || !GTK_IS_TOGGLE_BUTTON (widget)) {
+    return;
+  }
+
   if (!gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(widget))) {
     return;
   }
+
   int type = (int) data;
-  printf ("Set input source: %d\n", type);
   const char *cmds[] = {"ddcutil setvcp 60 0x05", "ddcutil setvcp 60 0x0f"};
+
+  if (type < 0 || type >= G_N_ELEMENTS (cmds)) {
+    g_warning ("Invalid type: %d", type);
+    return;
+  }
+
   FILE *fp = popen (cmds[type], "w");
+  if (!fp) {
+    g_warning ("Failed to open command: %s", cmds[type]);
+    return;
+  }
+
   pclose (fp);
 }
 
